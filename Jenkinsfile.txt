@@ -1,52 +1,33 @@
 pipeline {
     agent any
-    tools {
-        nodejs 'NodeJS-24' // Must match the name in Jenkins Global Tool Configuration
-    }
-    environment {
-        DIST_FOLDER = "dist/my-angular-app" // Change this to your Angular output folder
-        IIS_DEPLOY_PATH = "C:\\inetpub\\wwwroot\\my-angular-app"
-    }
+
     stages {
-        stage('Checkout Code') {
+        stage('Checkout') {
             steps {
-                git branch: 'main', url: 'https://github.com/GaurShankarGope/My-First-Jenkin-project.git
+                git(
+                    url: 'https://github.com/GaurShankarGope/My-First-Jenkin-project.git',
+                    branch: 'main',
+                    credentialsId: 'github-credentials'
+                )
             }
         }
+
         stage('Install Dependencies') {
             steps {
-                bat 'npm install'
+                sh 'npm install'
             }
         }
-        stage('Build Angular App') {
+
+        stage('Build Angular Project') {
             steps {
-                bat 'npx ng build --configuration production'
+                sh 'npm run build --prod'
             }
         }
-        stage('Run Unit Tests') {
+
+        stage('Archive Build') {
             steps {
-                bat 'npx ng test --watch=false --browsers=ChromeHeadless'
+                archiveArtifacts artifacts: 'dist/**', followSymlinks: false
             }
-        }
-        stage('Deploy to IIS') {
-            steps {
-                script {
-                    echo "Deploying Angular app to IIS..."
-                    bat """
-                        if exist "%IIS_DEPLOY_PATH%" rmdir /S /Q "%IIS_DEPLOY_PATH%"
-                        mkdir "%IIS_DEPLOY_PATH%"
-                        xcopy "%DIST_FOLDER%\\*" "%IIS_DEPLOY_PATH%" /E /I /Y
-                    """
-                }
-            }
-        }
-    }
-    post {
-        success {
-            echo "✅ Build & deployment completed successfully!"
-        }
-        failure {
-            echo "❌ Build or deployment failed!"
         }
     }
 }

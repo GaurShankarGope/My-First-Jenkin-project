@@ -2,6 +2,12 @@ pipeline {
     agent any
 
     stages {
+        stage('Clean Workspace') {
+            steps {
+                deleteDir() // Removes all old files
+            }
+        }
+
         stage('Checkout') {
             steps {
                 git(
@@ -14,7 +20,9 @@ pipeline {
 
         stage('Install Dependencies') {
             steps {
-                bat 'npm install'
+                retry(3) {
+                    bat 'npm install'
+                }
             }
         }
 

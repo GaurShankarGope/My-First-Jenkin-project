@@ -1,0 +1,24 @@
+<div class="container">
+	<h2>Dashboard - CRUD Example</h2>
+	<form [formGroup]="itemForm" (ngSubmit)="onSubmit()">
+		<input formControlName="name" placeholder="Name" class="form-control mb-2" />
+		<input formControlName="description" placeholder="Description" class="form-control mb-2" />
+		<button type="submit" class="btn btn-primary">{{ editMode ? 'Update' : 'Add' }} Item</button>
+		<button type="button" *ngIf="editMode" class="btn btn-secondary ms-2" (click)="editMode = false; itemForm.reset();">Cancel</button>
+	</form>
+			<div class="mt-4">
+				<div class="d-flex fw-bold border-bottom py-2 dashboard-header-row">
+					<div class="flex-fill">Name</div>
+					<div class="flex-fill">Description</div>
+					<div class="dashboard-actions-col">Actions</div>
+				</div>
+				<div *ngFor="let item of items$ | async" class="d-flex align-items-center border-bottom py-2 dashboard-item-row">
+					<div class="flex-fill">{{ item.name }}</div>
+					<div class="flex-fill">{{ item.description }}</div>
+					<div class="dashboard-actions-col">
+						<button class="btn btn-sm btn-warning me-2" (click)="onEdit(item)">Edit</button>
+						<button class="btn btn-sm btn-danger" (click)="onDelete(item.id)">Delete</button>
+					</div>
+				</div>
+			</div>
+</div>

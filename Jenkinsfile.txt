@@ -1,7 +1,7 @@
 pipeline {
     agent any
     tools {
-        nodejs 'NodeJS_18' // Must match the name in Jenkins Global Tool Configuration
+        nodejs 'NodeJS_24' // Must match the name in Jenkins Global Tool Configuration
     }
     environment {
         DIST_FOLDER = "dist/my-angular-app" // Change this to your Angular output folder

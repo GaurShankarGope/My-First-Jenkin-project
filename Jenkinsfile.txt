@@ -16,7 +16,7 @@ pipeline {
 
         stage('Install Dependencies') {
             steps {
-                dir('ngrx-project') {  // Change to your project folder
+                dir('ngrx-project') {  // Run commands inside ngrx-project
                     retry(2) {
                         bat 'npm install'
                     }
@@ -27,7 +27,7 @@ pipeline {
         stage('Build Angular Project') {
             steps {
                 dir('ngrx-project') {
-                    bat 'npm run build --prod'
+                    bat 'npm run build'
                 }
             }
         }
@@ -42,8 +42,8 @@ pipeline {
 
         stage('Deploy to IIS') {
             steps {
-                bat 'if not exist "C:\\inetpub\\wwwroot\\MyApp" mkdir "C:\\inetpub\\wwwroot\\MyApp"'
-                bat 'xcopy /E /Y /I ngrx-project\\dist\\* "C:\\inetpub\\wwwroot\\MyApp\\"'
+                bat 'if not exist "C:\\inetpub\\wwwroot\\ngrx-project" mkdir "C:\\inetpub\\wwwroot\\ngrx-project"'
+                bat 'xcopy /E /Y /I ngrx-project\\dist\\* "C:\\inetpub\\wwwroot\\ngrx-project\\"'
             }
         }
 

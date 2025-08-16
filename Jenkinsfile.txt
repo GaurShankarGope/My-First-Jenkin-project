@@ -34,12 +34,9 @@ pipeline {
         stage('Deploy to IIS') {
             steps {
                 script {
-                    // Create IIS directory if it does not exist
                     if (!fileExists("${IIS_DIR}")) {
                         bat "mkdir \"${IIS_DIR}\""
                     }
-
-                    // Copy files to IIS directory
                     bat "xcopy /E /Y /I \"${DIST_DIR}\\*\" \"${IIS_DIR}\\\""
                 }
             }
@@ -48,8 +45,13 @@ pipeline {
         stage('Restart IIS') {
             steps {
                 script {
-                    // Restart IIS with admin privileges
-                    bat 'cmd /c "C:\\Windows\\System32\\iisreset.exe"'
+                    def iisResetPath = "C:\\Windows\\Sysnative\\iisreset.exe"
+
+                    if (fileExists(iisResetPath)) {
+                        bat "cmd /c \"${iisResetPath}\""
+                    } else {
+                        echo "iisreset.exe not found! Make sure Jenkins is running as admin."
+                    }
                 }
             }
         }

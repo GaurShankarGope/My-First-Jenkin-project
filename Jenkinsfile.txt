@@ -4,7 +4,7 @@ pipeline {
     environment {
         NODE_CMD = "C:\\Program Files\\nodejs\\npm.cmd"
         PROJECT_DIR = "${env.WORKSPACE}\\ngrx-project"
-        DIST_DIR = "${PROJECT_DIR}\\dist\\ngrx-project"
+        DIST_DIR = "${env.WORKSPACE}\\dist\\ngrx-project"
         IIS_DIR = "C:\\inetpub\\wwwroot\\ngrx-project"
     }
 

@@ -35,25 +35,20 @@ pipeline {
         stage('Deploy to IIS') {
             steps {
                 script {
-                    // Paths
                     def timestamp = new Date().format("yyyyMMdd-HHmmss")
                     def targetPath = "C:\\inetpub\\wwwroot\\ngrx-project\\build-${timestamp}"
-                    def sourcePath = "${env.WORKSPACE}\\ngrx-project\\dist\\ngrx-project"
+                    def sourcePath = "${env.WORKSPACE}\\dist\\ngrx-project"  // Corrected build path
 
-                    // Check if build output exists
                     if (!fileExists(sourcePath)) {
                         error "Build output not found at ${sourcePath}. Check Angular build configuration."
                     }
 
-                    // Create deployment folder
                     echo "Creating deployment folder: ${targetPath}"
                     bat "mkdir \"${targetPath}\""
 
-                    // Copy build files
                     echo "Copying files to IIS..."
                     bat "robocopy \"${sourcePath}\" \"${targetPath}\" /E /NFL /NDL /NJH /NJS /nc /ns /np"
 
-                    // Update IIS site and restart AppPool
                     echo "Updating IIS site to new folder..."
                     powershell """
                         Import-Module WebAdministration

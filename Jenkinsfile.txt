@@ -7,24 +7,22 @@ pipeline {
     }
 
     stages {
-
-        stage('Checkout SCM') {
+        stage('Clean Workspace') {
             steps {
-                // Checkout the repo
-                checkout scm
+                deleteDir() // ✅ Clean first
             }
         }
 
-        stage('Clean Workspace') {
+        stage('Checkout SCM') {
             steps {
-                deleteDir()
+                checkout scm // ✅ Then checkout the repo
+                bat 'dir'    // ✅ Debug: confirm package.json is present
             }
         }
 
         stage('Install Dependencies') {
             steps {
                 retry(2) {
-                    // Run npm install in the root where package.json exists
                     bat 'npm install'
                 }
             }
@@ -32,31 +30,25 @@ pipeline {
 
         stage('Build Angular Project') {
             steps {
-                // Build the Angular project for production
                 bat 'npm run build -- --configuration production'
             }
         }
 
         stage('Archive Build') {
             steps {
-                // Archive all files in dist folder
                 archiveArtifacts artifacts: "${BUILD_DIR}/**", fingerprint: true
             }
         }
 
         stage('Deploy to IIS') {
             steps {
-                // Create IIS folder if it doesn't exist
                 bat "if not exist \"${DEPLOY_DIR}\" mkdir \"${DEPLOY_DIR}\""
-
-                // Copy all built files to IIS folder
                 bat "xcopy /E /Y /I ${BUILD_DIR}\\* \"${DEPLOY_DIR}\\\""
             }
         }
 
         stage('Restart IIS') {
             steps {
-                // Restart IIS to apply changes
                 bat 'iisreset'
             }
         }

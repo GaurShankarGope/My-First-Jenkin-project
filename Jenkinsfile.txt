@@ -2,77 +2,57 @@ pipeline {
     agent any
 
     environment {
-        NODE_ENV = 'production'
+        WORKSPACE_DIR = "C:\\ProgramData\\Jenkins\\.jenkins\\workspace\\My First Jenkins Application"
+        IIS_DIR = "C:\\inetpub\\wwwroot\\ngrx-project"
     }
 
     stages {
+
+        stage('Clean Workspace') {
+            steps {
+                // Optional: clean before checkout
+                deleteDir()
+            }
+        }
+
         stage('Checkout SCM') {
             steps {
                 checkout scm
             }
         }
 
-        stage('Clean Workspace') {
-            steps {
-                deleteDir()
-            }
-        }
-
         stage('Install Dependencies') {
             steps {
-                retry(2) {
-                    bat 'npm install'
+                dir("${WORKSPACE_DIR}") {
+                    bat '"C:\\Program Files\\nodejs\\npm.cmd" install'
                 }
             }
         }
 
         stage('Build Angular Project') {
             steps {
-                bat 'npm run build -- --configuration production'
-            }
-        }
-
-        stage('Archive Build') {
-            steps {
-                archiveArtifacts artifacts: 'dist/**', fingerprint: true
+                dir("${WORKSPACE_DIR}") {
+                    bat '"C:\\Program Files\\nodejs\\npm.cmd" run build -- --configuration production'
+                }
             }
         }
 
         stage('Deploy to IIS') {
             steps {
-                bat '''
-                if not exist "C:\\inetpub\\wwwroot\\ngrx-project" mkdir "C:\\inetpub\\wwwroot\\ngrx-project"
-                xcopy /E /Y /I dist\\* "C:\\inetpub\\wwwroot\\ngrx-project\\"
-                '''
+                bat "if not exist \"${IIS_DIR}\" mkdir \"${IIS_DIR}\""
+                bat "xcopy /E /Y /I \"${WORKSPACE_DIR}\\dist\\*\" \"${IIS_DIR}\\\""
             }
         }
 
         stage('Restart IIS') {
             steps {
-                bat '''
-                REM Use Sysnative to access 64-bit System32 from 32-bit Jenkins
-                if exist C:\\Windows\\Sysnative\\iisreset.exe (
-                    C:\\Windows\\Sysnative\\iisreset.exe /restart
-                ) else (
-                    REM Fallback if Sysnative not available
-                    if exist C:\\Windows\\System32\\iisreset.exe (
-                        C:\\Windows\\System32\\iisreset.exe /restart
-                    ) else (
-                        echo IISRESET not found!
-                        exit /b 1
-                    )
-                )
-                '''
+                bat 'C:\\Windows\\System32\\iisreset.exe'
             }
         }
     }
 
     post {
-        success {
-            echo 'Build and deployment succeeded!'
-        }
-        failure {
-            echo 'Build or deployment failed! Check console logs.'
-        }
+        success { echo "Build and Deployment Succeeded!" }
+        failure { echo "Build or deployment failed! Check console logs." }
     }
 }

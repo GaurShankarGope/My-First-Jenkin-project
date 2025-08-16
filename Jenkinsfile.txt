@@ -16,28 +16,34 @@ pipeline {
 
         stage('Install Dependencies') {
             steps {
-                retry(2) {
-                    bat 'npm install'
+                dir('ngrx-project') {  // Change to your project folder
+                    retry(2) {
+                        bat 'npm install'
+                    }
                 }
             }
         }
 
         stage('Build Angular Project') {
             steps {
-                bat 'npm run build --prod'
+                dir('ngrx-project') {
+                    bat 'npm run build --prod'
+                }
             }
         }
 
         stage('Archive Build') {
             steps {
-                archiveArtifacts artifacts: 'dist/**', fingerprint: true
+                dir('ngrx-project') {
+                    archiveArtifacts artifacts: 'dist/**', fingerprint: true
+                }
             }
         }
 
         stage('Deploy to IIS') {
             steps {
                 bat 'if not exist "C:\\inetpub\\wwwroot\\MyApp" mkdir "C:\\inetpub\\wwwroot\\MyApp"'
-                bat 'xcopy /E /Y /I dist\\* "C:\\inetpub\\wwwroot\\MyApp\\"'
+                bat 'xcopy /E /Y /I ngrx-project\\dist\\* "C:\\inetpub\\wwwroot\\MyApp\\"'
             }
         }
 

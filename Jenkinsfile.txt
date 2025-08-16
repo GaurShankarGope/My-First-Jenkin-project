@@ -4,7 +4,7 @@ pipeline {
     environment {
         NODE_HOME = "C:\\Program Files\\nodejs"
         PATH = "${env.NODE_HOME};${env.PATH}"
-        IIS_SITE_NAME = "ngrx-project"  // Change to your IIS site name
+        IIS_SITE_NAME = "ngrx-project" // Change to your IIS site name
     }
 
     stages {
@@ -36,8 +36,8 @@ pipeline {
             steps {
                 script {
                     def timestamp = new Date().format("yyyyMMdd-HHmmss")
+                    def sourcePath = "${env.WORKSPACE}\\ngrx-project\\dist\\ngrx-project"
                     def targetPath = "C:\\inetpub\\wwwroot\\ngrx-project\\build-${timestamp}"
-                    def sourcePath = "${env.WORKSPACE}\\dist\\ngrx-project"  // Corrected build path
 
                     if (!fileExists(sourcePath)) {
                         error "Build output not found at ${sourcePath}. Check Angular build configuration."

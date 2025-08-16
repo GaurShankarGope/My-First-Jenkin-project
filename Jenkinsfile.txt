@@ -2,22 +2,23 @@ pipeline {
     agent any
 
     environment {
-        WORKSPACE_DIR = "C:\\ProgramData\\Jenkins\\.jenkins\\workspace\\My First Jenkins Application"
+        NODE_HOME = "C:\\Program Files\\nodejs"
+        PATH = "${env.NODE_HOME};${env.PATH}"
+        WORKSPACE_DIR = "${WORKSPACE}"
+        DIST_DIR = "${WORKSPACE}\\dist\\ngrx-project"
         IIS_DIR = "C:\\inetpub\\wwwroot\\ngrx-project"
     }
 
     stages {
-
-        stage('Clean Workspace') {
-            steps {
-                // Optional: clean before checkout
-                deleteDir()
-            }
-        }
-
         stage('Checkout SCM') {
             steps {
                 checkout scm
+            }
+        }
+
+        stage('Clean Workspace') {
+            steps {
+                deleteDir()
             }
         }
 
@@ -39,20 +40,26 @@ pipeline {
 
         stage('Deploy to IIS') {
             steps {
-                bat "if not exist \"${IIS_DIR}\" mkdir \"${IIS_DIR}\""
-                bat "xcopy /E /Y /I \"${WORKSPACE_DIR}\\dist\\*\" \"${IIS_DIR}\\\""
-            }
-        }
+                dir("${WORKSPACE_DIR}") {
+                    // Ensure target folder exists
+                    bat "if not exist \"${IIS_DIR}\" mkdir \"${IIS_DIR}\""
 
-        stage('Restart IIS') {
-            steps {
-                bat 'C:\\Windows\\Sysnative\\iisreset.exe'
+                    // Copy build files to IIS folder
+                    bat "xcopy /E /Y /I \"${DIST_DIR}\\*\" \"${IIS_DIR}\\\""
+
+                    // Restart IIS using PowerShell
+                    bat 'powershell -Command "Restart-Service W3SVC -Force"'
+                }
             }
         }
     }
 
     post {
-        success { echo "Build and Deployment Succeeded!" }
-        failure { echo "Build or deployment failed! Check console logs." }
+        success {
+            echo "Build and Deployment completed successfully!"
+        }
+        failure {
+            echo "Build or deployment failed! Check console logs."
+        }
     }
 }

@@ -4,7 +4,8 @@ pipeline {
     environment {
         NODE_HOME = "C:\\Program Files\\nodejs"
         PATH = "${env.NODE_HOME};${env.PATH}"
-        IIS_SITE_NAME = "ngrx-project" // Change to your IIS site name
+        IIS_SITE_NAME = "ngrx-project" // Your IIS site name
+        DEPLOY_ROOT = "C:\\inetpub\\wwwroot\\ngrx-project"
     }
 
     stages {
@@ -31,26 +32,20 @@ pipeline {
         stage('Deploy to IIS') {
             steps {
                 script {
-                    // Use the correct Angular build output folder
-                    def sourcePath = "${env.WORKSPACE}\\dist\\ngrx-project"
-                    if (!fileExists(sourcePath)) {
-                        error "Build output not found at ${sourcePath}. Check Angular build configuration."
-                    }
-
                     def timestamp = new Date().format("yyyyMMdd-HHmmss")
-                    def targetPath = "C:\\inetpub\\wwwroot\\ngrx-project\\build-${timestamp}"
-
+                    def targetPath = "${DEPLOY_ROOT}\\build-${timestamp}"
+                    
                     echo "Creating deployment folder: ${targetPath}"
                     bat "mkdir \"${targetPath}\""
 
                     echo "Copying files to IIS..."
-                    bat "robocopy \"${sourcePath}\" \"${targetPath}\" /E /NFL /NDL /NJH /NJS /nc /ns /np"
+                    bat "robocopy \"${WORKSPACE}\\dist\\ngrx-project\" \"${targetPath}\" /E /NFL /NDL /NJH /NJS /nc /ns /np"
 
-                    echo "Updating IIS site to new folder..."
+                    echo "Updating IIS site..."
                     powershell """
                         Import-Module WebAdministration
-                        Set-ItemProperty 'IIS:\\Sites\\${env.IIS_SITE_NAME}' -Name physicalPath -Value '${targetPath}'
-                        Restart-WebAppPool '${env.IIS_SITE_NAME}'
+                        Set-ItemProperty 'IIS:\\Sites\\${IIS_SITE_NAME}' -Name physicalPath -Value '${targetPath}'
+                        Restart-WebAppPool '${IIS_SITE_NAME}'
                         Write-Host 'IIS site updated successfully!'
                     """
                 }
@@ -60,14 +55,19 @@ pipeline {
         stage('Cleanup Old Builds') {
             steps {
                 script {
-                    echo 'Removing builds older than 5 deployments...'
-                    def buildDir = new File("C:\\inetpub\\wwwroot\\ngrx-project")
-                    def builds = buildDir.listFiles().findAll { it.isDirectory() && it.name.startsWith("build-") }
-                    builds.sort { a, b -> b.lastModified() <=> a.lastModified() } // newest first
-                    builds.drop(5).each { oldBuild ->
-                        echo "Deleting old build: ${oldBuild}"
-                        bat "rmdir /s /q \"${oldBuild}\""
-                    }
+                    echo "Cleaning up old deployments (keeping last 5)..."
+                    // Use pure bat commands to safely delete old folders on Windows
+                    bat """
+                        setlocal enabledelayedexpansion
+                        set count=0
+                        for /f "tokens=*" %%D in ('dir /b /ad /o-d "${DEPLOY_ROOT}\\build-*"') do (
+                            set /a count+=1
+                            if !count! gtr 5 (
+                                echo Deleting old build: %%D
+                                rmdir /s /q "${DEPLOY_ROOT}\\%%D"
+                            )
+                        )
+                    """
                 }
             }
         }

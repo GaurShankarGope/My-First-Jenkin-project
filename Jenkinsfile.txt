@@ -2,25 +2,21 @@ pipeline {
     agent any
 
     stages {
+        stage('Checkout SCM') {
+            steps {
+                checkout scm
+            }
+        }
+
         stage('Clean Workspace') {
             steps {
                 deleteDir()
             }
         }
 
-        stage('Checkout') {
-            steps {
-                git(
-                    url: 'https://github.com/GaurShankarGope/My-First-Jenkin-project.git',
-                    branch: 'main',
-                    credentialsId: 'github-credentials' // remove if not needed
-                )
-            }
-        }
-
         stage('Install Dependencies') {
             steps {
-                retry(3) {
+                retry(2) {
                     bat 'npm install'
                 }
             }
@@ -34,23 +30,24 @@ pipeline {
 
         stage('Archive Build') {
             steps {
-                archiveArtifacts artifacts: 'dist/**', followSymlinks: false
+                archiveArtifacts artifacts: 'dist/ngrx-project/**', fingerprint: true
             }
         }
 
         stage('Deploy to IIS') {
             steps {
-                // Make sure IIS site folder exists and Jenkins runs as admin
-                bat '''
-                if not exist "C:\\inetpub\\wwwroot\\MyApp" mkdir "C:\\inetpub\\wwwroot\\MyApp"
-                xcopy /E /Y /I dist\\ngrx-project\\* "C:\\inetpub\\wwwroot\\MyApp\\"
-                '''
+                // Ensure target folder exists
+                bat 'if not exist "C:\\inetpub\\wwwroot\\MyApp" mkdir "C:\\inetpub\\wwwroot\\MyApp"'
+
+                // Copy files to IIS
+                bat 'xcopy /E /Y /I dist\\ngrx-project\\* "C:\\inetpub\\wwwroot\\MyApp\\"'
             }
         }
 
         stage('Restart IIS') {
             steps {
-                bat 'iisreset'
+                // Full path to iisreset
+                bat 'C:\\Windows\\System32\\iisreset.exe'
             }
         }
     }
@@ -58,9 +55,6 @@ pipeline {
     post {
         failure {
             echo 'Build or deployment failed! Check console logs.'
-        }
-        success {
-            echo 'Angular app successfully deployed to IIS!'
         }
     }
 }

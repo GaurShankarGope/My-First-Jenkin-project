@@ -35,8 +35,13 @@ pipeline {
         stage('Deploy to IIS') {
             steps {
                 script {
+                    // Read angular.json to get outputPath dynamically
+                    def angularJson = readJSON file: 'ngrx-project/angular.json'
+                    def projectName = angularJson.defaultProject
+                    def outputPath = angularJson.projects[projectName].architect.build.options.outputPath
+
                     def timestamp = new Date().format("yyyyMMdd-HHmmss")
-                    def sourcePath = "${env.WORKSPACE}\\ngrx-project\\dist\\ngrx-project"
+                    def sourcePath = "${env.WORKSPACE}\\ngrx-project\\${outputPath}"
                     def targetPath = "C:\\inetpub\\wwwroot\\ngrx-project\\build-${timestamp}"
 
                     if (!fileExists(sourcePath)) {

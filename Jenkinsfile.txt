@@ -4,6 +4,7 @@ pipeline {
     environment {
         NODE_HOME = "C:\\Program Files\\nodejs"
         PATH = "${env.NODE_HOME};${env.PATH}"
+        IIS_SITE_NAME = "ngrx-project"  // Change to your IIS site name
     }
 
     stages {
@@ -34,29 +35,48 @@ pipeline {
         stage('Deploy to IIS') {
             steps {
                 script {
-                    // Timestamped folder for deployment
+                    // Paths
                     def timestamp = new Date().format("yyyyMMdd-HHmmss")
                     def targetPath = "C:\\inetpub\\wwwroot\\ngrx-project\\build-${timestamp}"
                     def sourcePath = "${env.WORKSPACE}\\ngrx-project\\dist\\ngrx-project"
 
+                    // Check if build output exists
+                    if (!fileExists(sourcePath)) {
+                        error "Build output not found at ${sourcePath}. Check Angular build configuration."
+                    }
+
+                    // Create deployment folder
                     echo "Creating deployment folder: ${targetPath}"
                     bat "mkdir \"${targetPath}\""
 
+                    // Copy build files
                     echo "Copying files to IIS..."
                     bat "robocopy \"${sourcePath}\" \"${targetPath}\" /E /NFL /NDL /NJH /NJS /nc /ns /np"
-                }
-            }
-        }
 
-        stage('Update IIS Site') {
-            steps {
-                echo 'You can add appcmd or PowerShell commands here to update IIS site to the new folder'
+                    // Update IIS site and restart AppPool
+                    echo "Updating IIS site to new folder..."
+                    powershell """
+                        Import-Module WebAdministration
+                        Set-ItemProperty 'IIS:\\Sites\\${env.IIS_SITE_NAME}' -Name physicalPath -Value '${targetPath}'
+                        Restart-WebAppPool '${env.IIS_SITE_NAME}'
+                        Write-Host 'IIS site updated successfully!'
+                    """
+                }
             }
         }
 
         stage('Cleanup Old Builds') {
             steps {
-                echo 'Optional: Add cleanup commands if you want to remove old builds'
+                script {
+                    echo 'Removing builds older than 5 deployments...'
+                    def buildDir = new File("C:\\inetpub\\wwwroot\\ngrx-project")
+                    def builds = buildDir.listFiles().findAll { it.isDirectory() && it.name.startsWith("build-") }
+                    builds.sort { a, b -> b.lastModified() <=> a.lastModified() } // newest first
+                    builds.drop(5).each { oldBuild ->
+                        echo "Deleting old build: ${oldBuild}"
+                        bat "rmdir /s /q \"${oldBuild}\""
+                    }
+                }
             }
         }
     }

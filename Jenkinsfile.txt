@@ -10,43 +10,35 @@ pipeline {
     stages {
         stage('Checkout SCM') {
             steps {
-                checkout([$class: 'GitSCM', 
-                          branches: [[name: '*/main']], 
+                checkout([$class: 'GitSCM',
+                          branches: [[name: '*/main']],
                           userRemoteConfigs: [[url: 'https://github.com/GaurShankarGope/My-First-Jenkin-project.git']]])
             }
         }
 
         stage('Install Dependencies') {
             steps {
-                dir('ngrx-project') {
-                    bat 'npm install'
-                }
+                bat 'npm install'
             }
         }
 
         stage('Build Angular Project') {
             steps {
-                dir('ngrx-project') {
-                    bat 'npm run build -- --configuration production'
-                }
+                bat 'npm run build -- --configuration production'
             }
         }
 
         stage('Deploy to IIS') {
             steps {
                 script {
-                    // Read angular.json to get outputPath dynamically
-                    def angularJson = readJSON file: 'ngrx-project/angular.json'
-                    def projectName = angularJson.defaultProject
-                    def outputPath = angularJson.projects[projectName].architect.build.options.outputPath
-
-                    def timestamp = new Date().format("yyyyMMdd-HHmmss")
-                    def sourcePath = "${env.WORKSPACE}\\ngrx-project\\${outputPath}"
-                    def targetPath = "C:\\inetpub\\wwwroot\\ngrx-project\\build-${timestamp}"
-
+                    // Use the correct Angular build output folder
+                    def sourcePath = "${env.WORKSPACE}\\dist\\ngrx-project"
                     if (!fileExists(sourcePath)) {
                         error "Build output not found at ${sourcePath}. Check Angular build configuration."
                     }
+
+                    def timestamp = new Date().format("yyyyMMdd-HHmmss")
+                    def targetPath = "C:\\inetpub\\wwwroot\\ngrx-project\\build-${timestamp}"
 
                     echo "Creating deployment folder: ${targetPath}"
                     bat "mkdir \"${targetPath}\""

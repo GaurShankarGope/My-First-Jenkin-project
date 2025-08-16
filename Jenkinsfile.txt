@@ -9,10 +9,9 @@ pipeline {
     stages {
         stage('Checkout SCM') {
             steps {
-                git(
-                    url: 'https://github.com/GaurShankarGope/My-First-Jenkin-project.git',
-                    branch: 'main'
-                )
+                checkout([$class: 'GitSCM', 
+                          branches: [[name: '*/main']], 
+                          userRemoteConfigs: [[url: 'https://github.com/GaurShankarGope/My-First-Jenkin-project.git']]])
             }
         }
 
@@ -35,7 +34,7 @@ pipeline {
         stage('Deploy to IIS') {
             steps {
                 script {
-                    // Timestamped folder for backup
+                    // Timestamped folder for deployment
                     def timestamp = new Date().format("yyyyMMdd-HHmmss")
                     def targetPath = "C:\\inetpub\\wwwroot\\ngrx-project\\build-${timestamp}"
                     def sourcePath = "${env.WORKSPACE}\\ngrx-project\\dist\\ngrx-project"
@@ -51,46 +50,23 @@ pipeline {
 
         stage('Update IIS Site') {
             steps {
-                script {
-                    def siteName = "ngrx-project" // Your IIS site name
-                    def wwwRoot = "C:\\inetpub\\wwwroot\\ngrx-project"
-
-                    echo "Updating IIS site: ${siteName}"
-
-                    // Optional: backup old site
-                    bat "robocopy \"${wwwRoot}\" \"${wwwRoot}-backup\" /MIR /NFL /NDL /NJH /NJS /nc /ns /np"
-
-                    // Copy new build to wwwroot
-                    def latestBuild = bat(returnStdout: true, script: "dir /b /ad /o-d \"${wwwRoot}\" | findstr build-").trim()
-                    bat "robocopy \"${wwwRoot}\\${latestBuild}\" \"${wwwRoot}\" /MIR /NFL /NDL /NJH /NJS /nc /ns /np"
-
-                    // Restart IIS site
-                    bat """
-                    powershell -Command "Import-Module WebAdministration; \
-                    Stop-WebSite -Name '${siteName}'; \
-                    Start-WebSite -Name '${siteName}'"
-                    """
-                }
+                echo 'You can add appcmd or PowerShell commands here to update IIS site to the new folder'
             }
         }
 
         stage('Cleanup Old Builds') {
             steps {
-                script {
-                    def wwwRoot = "C:\\inetpub\\wwwroot\\ngrx-project"
-                    echo "Cleaning up old builds..."
-                    bat "powershell -Command \"Get-ChildItem -Path '${wwwRoot}' -Directory | Sort-Object LastWriteTime -Descending | Select-Object -Skip 5 | Remove-Item -Recurse -Force\""
-                }
+                echo 'Optional: Add cleanup commands if you want to remove old builds'
             }
         }
     }
 
     post {
         success {
-            echo "Build & deployment succeeded!"
+            echo 'Build and deployment completed successfully!'
         }
         failure {
-            echo "Build or deployment failed!"
+            echo 'Build or deployment failed!'
         }
     }
 }

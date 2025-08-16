@@ -46,7 +46,7 @@ pipeline {
 
         stage('Restart IIS') {
             steps {
-                bat 'C:\\Windows\\System32\\iisreset.exe'
+                bat 'C:\\Windows\\Sysnative\\iisreset.exe'
             }
         }
     }

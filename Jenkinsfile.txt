@@ -4,7 +4,7 @@ pipeline {
     stages {
         stage('Clean Workspace') {
             steps {
-                deleteDir() // Removes all old files
+                deleteDir()
             }
         }
 
@@ -35,6 +35,20 @@ pipeline {
         stage('Archive Build') {
             steps {
                 archiveArtifacts artifacts: 'dist/**', followSymlinks: false
+            }
+        }
+
+        stage('Deploy to IIS') {
+            steps {
+                bat '''
+                xcopy /E /Y /I dist\\My-First-Jenkin-project\\* "C:\\inetpub\\wwwroot\\MyApp\\"
+                '''
+            }
+        }
+
+        stage('Restart IIS') {
+            steps {
+                bat 'iisreset'
             }
         }
     }

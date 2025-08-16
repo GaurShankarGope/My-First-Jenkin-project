@@ -18,6 +18,7 @@ pipeline {
         stage('Install Dependencies') {
             steps {
                 dir("${PROJECT_DIR}") {
+                    // Install Node packages
                     bat "\"${NODE_CMD}\" install"
                 }
             }
@@ -26,6 +27,7 @@ pipeline {
         stage('Build Angular Project') {
             steps {
                 dir("${PROJECT_DIR}") {
+                    // Build Angular in production mode
                     bat "\"${NODE_CMD}\" run build -- --configuration production"
                 }
             }
@@ -33,14 +35,19 @@ pipeline {
 
         stage('Deploy to IIS') {
             steps {
+                // Create IIS directory if it does not exist
                 bat "if not exist \"${IIS_DIR}\" mkdir \"${IIS_DIR}\""
-                bat "xcopy /E /Y /I \"${DIST_DIR}\\*\" \"${IIS_DIR}\\\""
+                // Copy Angular build files to IIS directory
+                bat "xcopy /E /Y /I /C \"${DIST_DIR}\\*\" \"${IIS_DIR}\\\""
             }
         }
 
         stage('Restart IIS') {
             steps {
-                bat 'C:\\Windows\\SysNative\\iisreset.exe'
+                // Restart IIS (use forward slashes to avoid escape issues)
+                bat 'C:/Windows/SysNative/iisreset.exe'
+                // Alternatively, use:
+                // bat 'cmd /c "C:\\Windows\\SysNative\\iisreset.exe"'
             }
         }
     }

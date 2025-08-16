@@ -4,6 +4,10 @@ pipeline {
     environment {
         NODE_HOME = "C:\\Program Files\\nodejs"
         PATH = "${env.NODE_HOME};${env.PATH}"
+        DEPLOY_ROOT = "C:\\inetpub\\wwwroot\\ngrx-project"
+        TIMESTAMP = "${new Date().format('yyyyMMdd-HHmmss')}"
+        DEPLOY_PATH = "${DEPLOY_ROOT}\\build-${TIMESTAMP}"
+        IIS_SITE_NAME = "ngrx-project" // Replace with your IIS site name
     }
 
     stages {
@@ -32,28 +36,38 @@ pipeline {
             }
         }
 
-        stage('Deploy to IIS') {
+        stage('Deploy to IIS (Timestamped)') {
             steps {
                 script {
-                    def sourcePath = "${env.WORKSPACE}\\ngrx-project\\dist\\ngrx-project\\*"
-                    def destPath = "C:\\inetpub\\wwwroot\\ngrx-project\\"
+                    echo "Creating deployment folder: ${DEPLOY_PATH}"
+                    bat "mkdir \"${DEPLOY_PATH}\""
 
-                    echo "Copying files to IIS..."
-                    bat "xcopy /E /Y /I \"${sourcePath}\" \"${destPath}\""
+                    def sourcePath = "${env.WORKSPACE}\\ngrx-project\\dist\\ngrx-project\\"
+                    bat "robocopy \"${sourcePath}\" \"${DEPLOY_PATH}\" /E /NFL /NDL /NJH /NJS /nc /ns /np"
                 }
             }
         }
 
-        stage('Restart IIS Site') {
+        stage('Update IIS Site') {
             steps {
                 script {
-                    def siteName = "ngrx-project" // Replace with your IIS site name
-
-                    echo "Restarting IIS site: ${siteName}"
+                    echo "Updating IIS site ${IIS_SITE_NAME} to new deployment folder"
                     bat """
                     powershell -Command "Import-Module WebAdministration; \
-                    Stop-WebSite -Name '${siteName}'; \
-                    Start-WebSite -Name '${siteName}'"
+                    Set-ItemProperty 'IIS:\\Sites\\${IIS_SITE_NAME}' -Name physicalPath -Value '${DEPLOY_PATH}'; \
+                    Restart-WebItem 'IIS:\\Sites\\${IIS_SITE_NAME}'"
+                    """
+                }
+            }
+        }
+
+        stage('Cleanup Old Builds') {
+            steps {
+                script {
+                    echo "Keeping only last 5 builds..."
+                    bat """
+                    powershell -Command "\$dirs = Get-ChildItem -Path '${DEPLOY_ROOT}' -Directory | Sort-Object CreationTime -Descending | Select-Object -Skip 5; \
+                    foreach (\$d in \$dirs) { Remove-Item -Recurse -Force \$d.FullName }"
                     """
                 }
             }

@@ -2,21 +2,19 @@ pipeline {
     agent any
 
     environment {
-        BUILD_DIR = "dist"
-        DEPLOY_DIR = "C:\\inetpub\\wwwroot\\ngrx-project"
+        NODE_ENV = 'production'
     }
 
     stages {
-        stage('Clean Workspace') {
+        stage('Checkout SCM') {
             steps {
-                deleteDir() // ✅ Clean first
+                checkout scm
             }
         }
 
-        stage('Checkout SCM') {
+        stage('Clean Workspace') {
             steps {
-                checkout scm // ✅ Then checkout the repo
-                bat 'dir'    // ✅ Debug: confirm package.json is present
+                deleteDir()
             }
         }
 
@@ -36,25 +34,43 @@ pipeline {
 
         stage('Archive Build') {
             steps {
-                archiveArtifacts artifacts: "${BUILD_DIR}/**", fingerprint: true
+                archiveArtifacts artifacts: 'dist/**', fingerprint: true
             }
         }
 
         stage('Deploy to IIS') {
             steps {
-                bat "if not exist \"${DEPLOY_DIR}\" mkdir \"${DEPLOY_DIR}\""
-                bat "xcopy /E /Y /I ${BUILD_DIR}\\* \"${DEPLOY_DIR}\\\""
+                bat '''
+                if not exist "C:\\inetpub\\wwwroot\\ngrx-project" mkdir "C:\\inetpub\\wwwroot\\ngrx-project"
+                xcopy /E /Y /I dist\\* "C:\\inetpub\\wwwroot\\ngrx-project\\"
+                '''
             }
         }
 
         stage('Restart IIS') {
             steps {
-                bat 'C:\\Windows\\System32\\iisreset.exe'
+                bat '''
+                REM Use Sysnative to access 64-bit System32 from 32-bit Jenkins
+                if exist C:\\Windows\\Sysnative\\iisreset.exe (
+                    C:\\Windows\\Sysnative\\iisreset.exe /restart
+                ) else (
+                    REM Fallback if Sysnative not available
+                    if exist C:\\Windows\\System32\\iisreset.exe (
+                        C:\\Windows\\System32\\iisreset.exe /restart
+                    ) else (
+                        echo IISRESET not found!
+                        exit /b 1
+                    )
+                )
+                '''
             }
         }
     }
 
     post {
+        success {
+            echo 'Build and deployment succeeded!'
+        }
         failure {
             echo 'Build or deployment failed! Check console logs.'
         }

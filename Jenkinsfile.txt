@@ -2,11 +2,10 @@ pipeline {
     agent any
 
     environment {
-        NODE_HOME = "C:\\Program Files\\nodejs"
-        PATH = "${env.NODE_HOME};${env.PATH}"
-        WORKSPACE_DIR = "${WORKSPACE}"
-        DIST_DIR = "${WORKSPACE}\\dist\\ngrx-project"
-        IIS_DIR = "C:\\inetpub\\wwwroot\\ngrx-project"
+        NODE_PATH = "C:\\Program Files\\nodejs\\npm.cmd"
+        WORKSPACE_DIR = "${env.WORKSPACE}\\ngrx-project"
+        DIST_DIR = "${WORKSPACE_DIR}\\dist\\ngrx-project"
+        IIS_PATH = "C:\\inetpub\\wwwroot\\ngrx-project"
     }
 
     stages {
@@ -25,7 +24,7 @@ pipeline {
         stage('Install Dependencies') {
             steps {
                 dir("${WORKSPACE_DIR}") {
-                    bat '"C:\\Program Files\\nodejs\\npm.cmd" install'
+                    bat "\"${NODE_PATH}\" install"
                 }
             }
         }
@@ -33,23 +32,21 @@ pipeline {
         stage('Build Angular Project') {
             steps {
                 dir("${WORKSPACE_DIR}") {
-                    bat '"C:\\Program Files\\nodejs\\npm.cmd" run build -- --configuration production'
+                    bat "\"${NODE_PATH}\" run build -- --configuration production"
                 }
             }
         }
 
         stage('Deploy to IIS') {
             steps {
-                dir("${WORKSPACE_DIR}") {
-                    // Ensure target folder exists
-                    bat "if not exist \"${IIS_DIR}\" mkdir \"${IIS_DIR}\""
+                bat "if not exist \"${IIS_PATH}\" mkdir \"${IIS_PATH}\""
+                bat "xcopy /E /Y /I \"${DIST_DIR}\\*\" \"${IIS_PATH}\\\""
+            }
+        }
 
-                    // Copy build files to IIS folder
-                    bat "xcopy /E /Y /I \"${DIST_DIR}\\*\" \"${IIS_DIR}\\\""
-
-                    // Restart IIS using PowerShell
-                    bat 'powershell -Command "Restart-Service W3SVC -Force"'
-                }
+        stage('Restart IIS') {
+            steps {
+                bat 'C:\\Windows\\System32\\iisreset.exe'
             }
         }
     }

@@ -13,7 +13,7 @@ pipeline {
                 git(
                     url: 'https://github.com/GaurShankarGope/My-First-Jenkin-project.git',
                     branch: 'main',
-                    credentialsId: 'github-credentials'
+                    credentialsId: 'github-credentials' // remove if not needed
                 )
             }
         }
@@ -40,8 +40,10 @@ pipeline {
 
         stage('Deploy to IIS') {
             steps {
+                // Make sure IIS site folder exists and Jenkins runs as admin
                 bat '''
-                xcopy /E /Y /I dist\\My-First-Jenkin-project\\* "C:\\inetpub\\wwwroot\\MyApp\\"
+                if not exist "C:\\inetpub\\wwwroot\\MyApp" mkdir "C:\\inetpub\\wwwroot\\MyApp"
+                xcopy /E /Y /I dist\\ngrx-project\\* "C:\\inetpub\\wwwroot\\MyApp\\"
                 '''
             }
         }
@@ -50,6 +52,15 @@ pipeline {
             steps {
                 bat 'iisreset'
             }
+        }
+    }
+
+    post {
+        failure {
+            echo 'Build or deployment failed! Check console logs.'
+        }
+        success {
+            echo 'Angular app successfully deployed to IIS!'
         }
     }
 }

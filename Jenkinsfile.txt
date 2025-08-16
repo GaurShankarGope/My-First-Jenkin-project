@@ -4,10 +4,6 @@ pipeline {
     environment {
         NODE_HOME = "C:\\Program Files\\nodejs"
         PATH = "${env.NODE_HOME};${env.PATH}"
-        DEPLOY_ROOT = "C:\\inetpub\\wwwroot\\ngrx-project"
-        TIMESTAMP = "${new Date().format('yyyyMMdd-HHmmss')}"
-        DEPLOY_PATH = "${DEPLOY_ROOT}\\build-${TIMESTAMP}"
-        IIS_SITE_NAME = "ngrx-project" // Replace with your IIS site name
     }
 
     stages {
@@ -36,14 +32,19 @@ pipeline {
             }
         }
 
-        stage('Deploy to IIS (Timestamped)') {
+        stage('Deploy to IIS') {
             steps {
                 script {
-                    echo "Creating deployment folder: ${DEPLOY_PATH}"
-                    bat "mkdir \"${DEPLOY_PATH}\""
+                    // Timestamped folder for backup
+                    def timestamp = new Date().format("yyyyMMdd-HHmmss")
+                    def targetPath = "C:\\inetpub\\wwwroot\\ngrx-project\\build-${timestamp}"
+                    def sourcePath = "${env.WORKSPACE}\\ngrx-project\\dist\\ngrx-project"
 
-                    def sourcePath = "${env.WORKSPACE}\\ngrx-project\\dist\\ngrx-project\\"
-                    bat "robocopy \"${sourcePath}\" \"${DEPLOY_PATH}\" /E /NFL /NDL /NJH /NJS /nc /ns /np"
+                    echo "Creating deployment folder: ${targetPath}"
+                    bat "mkdir \"${targetPath}\""
+
+                    echo "Copying files to IIS..."
+                    bat "robocopy \"${sourcePath}\" \"${targetPath}\" /E /NFL /NDL /NJH /NJS /nc /ns /np"
                 }
             }
         }
@@ -51,11 +52,23 @@ pipeline {
         stage('Update IIS Site') {
             steps {
                 script {
-                    echo "Updating IIS site ${IIS_SITE_NAME} to new deployment folder"
+                    def siteName = "ngrx-project" // Your IIS site name
+                    def wwwRoot = "C:\\inetpub\\wwwroot\\ngrx-project"
+
+                    echo "Updating IIS site: ${siteName}"
+
+                    // Optional: backup old site
+                    bat "robocopy \"${wwwRoot}\" \"${wwwRoot}-backup\" /MIR /NFL /NDL /NJH /NJS /nc /ns /np"
+
+                    // Copy new build to wwwroot
+                    def latestBuild = bat(returnStdout: true, script: "dir /b /ad /o-d \"${wwwRoot}\" | findstr build-").trim()
+                    bat "robocopy \"${wwwRoot}\\${latestBuild}\" \"${wwwRoot}\" /MIR /NFL /NDL /NJH /NJS /nc /ns /np"
+
+                    // Restart IIS site
                     bat """
                     powershell -Command "Import-Module WebAdministration; \
-                    Set-ItemProperty 'IIS:\\Sites\\${IIS_SITE_NAME}' -Name physicalPath -Value '${DEPLOY_PATH}'; \
-                    Restart-WebItem 'IIS:\\Sites\\${IIS_SITE_NAME}'"
+                    Stop-WebSite -Name '${siteName}'; \
+                    Start-WebSite -Name '${siteName}'"
                     """
                 }
             }
@@ -64,11 +77,9 @@ pipeline {
         stage('Cleanup Old Builds') {
             steps {
                 script {
-                    echo "Keeping only last 5 builds..."
-                    bat """
-                    powershell -Command "\$dirs = Get-ChildItem -Path '${DEPLOY_ROOT}' -Directory | Sort-Object CreationTime -Descending | Select-Object -Skip 5; \
-                    foreach (\$d in \$dirs) { Remove-Item -Recurse -Force \$d.FullName }"
-                    """
+                    def wwwRoot = "C:\\inetpub\\wwwroot\\ngrx-project"
+                    echo "Cleaning up old builds..."
+                    bat "powershell -Command \"Get-ChildItem -Path '${wwwRoot}' -Directory | Sort-Object LastWriteTime -Descending | Select-Object -Skip 5 | Remove-Item -Recurse -Force\""
                 }
             }
         }

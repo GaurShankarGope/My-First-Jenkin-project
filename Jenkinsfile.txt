@@ -2,31 +2,32 @@ pipeline {
     agent any
 
     environment {
-        NODE_CMD = "C:\\Program Files\\nodejs\\npm.cmd"
-        PROJECT_DIR = "${env.WORKSPACE}\\ngrx-project"
-        DIST_DIR = "${env.WORKSPACE}\\dist\\ngrx-project"
-        IIS_DIR = "C:\\inetpub\\wwwroot\\ngrx-project"
+        NODE_HOME = "C:\\Program Files\\nodejs"
+        PATH = "${env.NODE_HOME};${env.PATH}"
     }
 
     stages {
         stage('Checkout SCM') {
             steps {
-                checkout scm
+                git(
+                    url: 'https://github.com/GaurShankarGope/My-First-Jenkin-project.git',
+                    branch: 'main'
+                )
             }
         }
 
         stage('Install Dependencies') {
             steps {
-                dir("${PROJECT_DIR}") {
-                    bat "\"${NODE_CMD}\" install"
+                dir('ngrx-project') {
+                    bat 'npm install'
                 }
             }
         }
 
         stage('Build Angular Project') {
             steps {
-                dir("${PROJECT_DIR}") {
-                    bat "\"${NODE_CMD}\" run build -- --configuration production"
+                dir('ngrx-project') {
+                    bat 'npm run build -- --configuration production'
                 }
             }
         }
@@ -34,24 +35,26 @@ pipeline {
         stage('Deploy to IIS') {
             steps {
                 script {
-                    if (!fileExists("${IIS_DIR}")) {
-                        bat "mkdir \"${IIS_DIR}\""
-                    }
-                    bat "xcopy /E /Y /I \"${DIST_DIR}\\*\" \"${IIS_DIR}\\\""
+                    def sourcePath = "${env.WORKSPACE}\\ngrx-project\\dist\\ngrx-project\\*"
+                    def destPath = "C:\\inetpub\\wwwroot\\ngrx-project\\"
+
+                    echo "Copying files to IIS..."
+                    bat "xcopy /E /Y /I \"${sourcePath}\" \"${destPath}\""
                 }
             }
         }
 
-        stage('Restart IIS') {
+        stage('Restart IIS Site') {
             steps {
                 script {
-                    def iisResetPath = "C:\\Windows\\Sysnative\\iisreset.exe"
+                    def siteName = "ngrx-project" // Replace with your IIS site name
 
-                    if (fileExists(iisResetPath)) {
-                        bat "cmd /c \"${iisResetPath}\""
-                    } else {
-                        echo "iisreset.exe not found! Make sure Jenkins is running as admin."
-                    }
+                    echo "Restarting IIS site: ${siteName}"
+                    bat """
+                    powershell -Command "Import-Module WebAdministration; \
+                    Stop-WebSite -Name '${siteName}'; \
+                    Start-WebSite -Name '${siteName}'"
+                    """
                 }
             }
         }
@@ -62,7 +65,7 @@ pipeline {
             echo "Build & deployment succeeded!"
         }
         failure {
-            echo "Build or deployment failed! Check console logs."
+            echo "Build or deployment failed!"
         }
     }
 }

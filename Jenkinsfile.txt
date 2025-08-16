@@ -1,9 +1,16 @@
 pipeline {
     agent any
 
+    environment {
+        BUILD_DIR = "dist"
+        DEPLOY_DIR = "C:\\inetpub\\wwwroot\\ngrx-project"
+    }
+
     stages {
+
         stage('Checkout SCM') {
             steps {
+                // Checkout the repo
                 checkout scm
             }
         }
@@ -16,40 +23,41 @@ pipeline {
 
         stage('Install Dependencies') {
             steps {
-                dir('ngrx-project') {  // Run commands inside ngrx-project
-                    retry(2) {
-                        bat 'npm install'
-                    }
+                retry(2) {
+                    // Run npm install in the root where package.json exists
+                    bat 'npm install'
                 }
             }
         }
 
         stage('Build Angular Project') {
             steps {
-                dir('ngrx-project') {
-                    bat 'npm run build'
-                }
+                // Build the Angular project for production
+                bat 'npm run build -- --configuration production'
             }
         }
 
         stage('Archive Build') {
             steps {
-                dir('ngrx-project') {
-                    archiveArtifacts artifacts: 'dist/**', fingerprint: true
-                }
+                // Archive all files in dist folder
+                archiveArtifacts artifacts: "${BUILD_DIR}/**", fingerprint: true
             }
         }
 
         stage('Deploy to IIS') {
             steps {
-                bat 'if not exist "C:\\inetpub\\wwwroot\\ngrx-project" mkdir "C:\\inetpub\\wwwroot\\ngrx-project"'
-                bat 'xcopy /E /Y /I ngrx-project\\dist\\* "C:\\inetpub\\wwwroot\\ngrx-project\\"'
+                // Create IIS folder if it doesn't exist
+                bat "if not exist \"${DEPLOY_DIR}\" mkdir \"${DEPLOY_DIR}\""
+
+                // Copy all built files to IIS folder
+                bat "xcopy /E /Y /I ${BUILD_DIR}\\* \"${DEPLOY_DIR}\\\""
             }
         }
 
         stage('Restart IIS') {
             steps {
-                bat 'C:\\Windows\\System32\\iisreset.exe'
+                // Restart IIS to apply changes
+                bat 'iisreset'
             }
         }
     }

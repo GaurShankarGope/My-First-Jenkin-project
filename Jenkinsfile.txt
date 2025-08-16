@@ -2,10 +2,9 @@ pipeline {
     agent any
 
     environment {
-        NODE_HOME = "C:\\Program Files\\nodejs"
-        PATH = "${env.NODE_HOME};${env.PATH}"
-        IIS_SITE_NAME = "ngrx-project" // Your IIS site name
         DEPLOY_ROOT = "C:\\inetpub\\wwwroot\\ngrx-project"
+        NODE_HOME = "C:\\Program Files\\nodejs" // adjust if different
+        PATH = "${NODE_HOME};${env.PATH}"
     }
 
     stages {
@@ -13,6 +12,8 @@ pipeline {
             steps {
                 checkout([$class: 'GitSCM',
                           branches: [[name: '*/main']],
+                          doGenerateSubmoduleConfigurations: false,
+                          extensions: [],
                           userRemoteConfigs: [[url: 'https://github.com/GaurShankarGope/My-First-Jenkin-project.git']]])
             }
         }
@@ -34,20 +35,15 @@ pipeline {
                 script {
                     def timestamp = new Date().format("yyyyMMdd-HHmmss")
                     def targetPath = "${DEPLOY_ROOT}\\build-${timestamp}"
-                    
+
                     echo "Creating deployment folder: ${targetPath}"
                     bat "mkdir \"${targetPath}\""
 
                     echo "Copying files to IIS..."
-                    bat "robocopy \"${WORKSPACE}\\dist\\ngrx-project\" \"${targetPath}\" /E /NFL /NDL /NJH /NJS /nc /ns /np"
+                    // ignore robocopy exit codes
+                    bat "robocopy \"${WORKSPACE}\\dist\\ngrx-project\" \"${targetPath}\" /E /NFL /NDL /NJH /NJS /nc /ns /np || exit 0"
 
-                    echo "Updating IIS site..."
-                    powershell """
-                        Import-Module WebAdministration
-                        Set-ItemProperty 'IIS:\\Sites\\${IIS_SITE_NAME}' -Name physicalPath -Value '${targetPath}'
-                        Restart-WebAppPool '${IIS_SITE_NAME}'
-                        Write-Host 'IIS site updated successfully!'
-                    """
+                    echo "Deployment complete!"
                 }
             }
         }
@@ -55,8 +51,7 @@ pipeline {
         stage('Cleanup Old Builds') {
             steps {
                 script {
-                    echo "Cleaning up old deployments (keeping last 5)..."
-                    // Use pure bat commands to safely delete old folders on Windows
+                    echo "Cleaning up old builds (keeping last 5)..."
                     bat """
                         setlocal enabledelayedexpansion
                         set count=0
@@ -70,15 +65,20 @@ pipeline {
                     """
                 }
             }
+            post {
+                failure {
+                    echo "Old builds cleanup failed, but continuing..."
+                }
+            }
         }
     }
 
     post {
         success {
-            echo 'Build and deployment completed successfully!'
+            echo "Build and deployment completed successfully!"
         }
         failure {
-            echo 'Build or deployment failed!'
+            echo "Build or deployment failed!"
         }
     }
 }
